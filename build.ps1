@@ -1,2 +1,2 @@
-pyinstaller --onefile main.py --name antenna
+pyinstaller --onefile main.py --name instrument
 Remove-Item *.spec
