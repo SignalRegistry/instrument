@@ -1,18 +1,30 @@
 import sys  # arguments
 import argparse
 
-match sys.argv[1:]:
-    case ["ffdist", *args]:
-        parser = argparse.ArgumentParser(prog="ffdist", description="Far-Field Distance of an Antenna")
-        parser.add_argument("D", help="antenna maximum cross-section size", type=float, nargs=1)
-        parser.add_argument("freq", help="frequency of interest in Hz", type=float, nargs=1)
-        parser.add_argument("--human", help="human readable output like cm, mm, km", action='store_true')
-        args = parser.parse_args(sys.argv[2:])
-        print(args)
-        # parser.print_help()
+match ("" if not len(sys.argv)>1 else  sys.argv[1]):
+    case "ceyear":
+        match ("" if not len(sys.argv)>2 else  sys.argv[2]):
+            case "connect":
+                # Requirements: 
+                # - Pyvisa-Py: A pure python PyVISA backend https://pyvisa-py.readthedocs.io/, pip install pyvisa-py
+                # - psutil: pip install psutil
+                # - zeroconf: pip install zeroconf
+                print("Connecting...")
+            case _:
+                print("Exiting")
+    case "list":
+        # Requirements: 
+        # - Pyvisa-Py: A pure python PyVISA backend https://pyvisa-py.readthedocs.io/, pip install pyvisa-py
+        # - psutil: conda install psutil
+        # - zeroconf: pip install zeroconf
+        import pyvisa
+        rm = pyvisa.ResourceManager('@py')
+        print(rm.list_resources())
     case _:
-        parser = argparse.ArgumentParser(prog="antenna", description="Antenna Toolkit")
-        parser.add_argument("[func] ffdist", help="Far-Field Distance of an Antenna", type=str, nargs='?')
-        print(parser.format_help().replace("positional arguments","module/function").replace("[ffdist]","[module/function]"))
+        parser = argparse.ArgumentParser(prog="instrument", description="Toolkit for Signal Instruments")
+        parser.add_argument("list", help="[f] list VISA supported instruments", type=str, nargs='?')
+        parser.add_argument("ceyear", help="[m] Ceyear Signal Instruments", type=str, nargs='?')
+        print(parser.format_help().replace("positional arguments","module/function").replace("[list] [ceyear]","[module/function]"))
+        # print(parser.format_help().replace("positional arguments","module/function").replace("[ceyear]",""))
         # parser.print_help()
 
