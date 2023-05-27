@@ -1,41 +1,66 @@
 import sys  # arguments
 import argparse
+import textwrap
+import time
 
-match ("" if not len(sys.argv)>1 else  sys.argv[1]):
-    case "ceyear":
-        match ("" if not len(sys.argv)>2 else  sys.argv[2]):
-            case "connect":
-                # Requirements: 
-                # - Pyvisa-Py: A pure python PyVISA backend https://pyvisa-py.readthedocs.io/, pip install pyvisa-py
-                # - psutil: pip install psutil
-                # - zeroconf: pip install zeroconf
-                print("Connecting...")
-            case _:
-                parser = argparse.ArgumentParser(prog="ceyear", description="Ceyear Signal Instruments")
-                parser.add_argument("connect", help="[f] connect to a Ceyear instrument", type=str, nargs='?')
-                args = parser.parse_args(sys.argv[2:])
-                parser.print_help()
-    case "list":
-        parser = argparse.ArgumentParser(prog="list", description="list VISA supported instruments")
+import pyvisa_py
+import pyvisa as visa
+import win32com.client
+
+rm = visa.ResourceManager('@py')
+
+match sys.argv[1:]:
+    case ["list", *args]:
+        parser = argparse.ArgumentParser(prog="list", description="list of connected VISA supported instruments", 
+                                         formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         epilog=textwrap.dedent('''
+                                         '''))
         args = parser.parse_args(sys.argv[2:])
-
-        # Requirements: 
-        # - Pyvisa-Py: A pure python PyVISA backend https://pyvisa-py.readthedocs.io/, pip install pyvisa-py
-        # - psutil: pip install psutil
-        # - zeroconf: pip install zeroconf
-        import pyvisa
-        rm = pyvisa.ResourceManager('@py')
         print(rm.list_resources())
-    case "connect":
-        parser = argparse.ArgumentParser(prog="connect", description="test connection to an instrument over LAN")
-        parser.add_argument("address", help="VISA address", type=str, nargs=1)
+    case ["ping", *args]:
+        parser = argparse.ArgumentParser(prog="ping", description="test connection to an instrument with '*IDN?' query", 
+                                         formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         epilog=textwrap.dedent('''
+                                         '''))
+        parser.add_argument("address", help="VISA or COM address of an instrument", type=str, nargs=1)
         args = parser.parse_args(sys.argv[2:])
-    case _:
-        parser = argparse.ArgumentParser(prog="instrument", description="Toolkit for Signal Instruments")
-        parser.add_argument("list", help="[f] list VISA supported instruments", type=str, nargs='?')
-        parser.add_argument("connect", help="[f] test connection to an instrument over LAN", type=str, nargs='?')
-        # parser.add_argument("ceyear", help="[m] Ceyear Signal Instruments", type=str, nargs='?')
-        print(parser.format_help().replace("positional arguments","module/function").replace("[list] [connect]","[module/function]"))
-        # print(parser.format_help().replace("positional arguments","module/function").replace("[ceyear]",""))
-        # parser.print_help()
+        if('::' in args.address[0]):
+            print("VISA instrument")
+        else:
+            try:
+              app = win32com.client.Dispatch(args.address[0] + ".application")
+            except:
+              print("ping: error: failed establishing COM server connection to " + args.address[0] + ".", file=sys.stderr)
+              exit(1)
 
+            #Wait up to 20 seconds for instrument to be ready
+            if app.Ready == 0:
+                print("ping: info: waiting...")
+                for k in range (1, 21):
+                    time.sleep(1)
+                    if app.Ready != 0:
+                        break
+
+            # If the software is still not ready, cancel the program
+            if app.Ready == 0:
+              print("ping: error: timeout waiting for instrument to be ready.", file=sys.stderr)
+              print("ping: error: instrument is powered on and connected to PC.", file=sys.stderr)
+              exit(1)
+            else:
+                print(app.scpi.IEEE4882.IDN)
+                # print(app.name)
+           
+
+    case _:
+        parser = argparse.ArgumentParser(prog="antenna", description="Instrument Toolkit",
+                                         formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         epilog=textwrap.dedent('''
+                                         Supported Instruments:
+                                         - Copper Mountain: RVNA, TRVNA, S2VNA, S4VNA
+                                         '''))
+        parser.add_argument("list", help="[f] list of connected VISA supported instruments", type=str, nargs='?')
+        parser.add_argument("ping", help="[f] test connection to an instrument iwth '*IDN?' query", type=str, nargs='?')
+        print(parser.format_help().replace("positional arguments","module/function")
+              .replace("[list] ","")
+              .replace("[ping]","[module/function]")
+              )
